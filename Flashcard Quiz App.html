@@ -1,0 +1,604 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>FlipStudy — Flashcard Quiz App</title>
+  <link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;600;700&family=Inter:wght@400;500&display=swap" rel="stylesheet"/>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #0f1117;
+      --surface: #181c27;
+      --card-front: #1e2336;
+      --card-back: #1a2e24;
+      --accent: #4ade80;
+      --accent-dim: #22543d;
+      --text: #e8eaf0;
+      --muted: #7a8099;
+      --border: #2a2f45;
+      --danger: #f87171;
+      --danger-dim: #3b1a1a;
+      --warn: #fbbf24;
+      --radius: 18px;
+    }
+
+    body {
+      font-family: 'Inter', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    /* ── HEADER ── */
+    header {
+      width: 100%;
+      padding: 20px 32px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1px solid var(--border);
+      position: sticky; top: 0;
+      background: var(--bg);
+      z-index: 100;
+    }
+    .logo {
+      font-family: 'Sora', sans-serif;
+      font-size: 1.4rem;
+      font-weight: 700;
+      letter-spacing: -0.5px;
+    }
+    .logo span { color: var(--accent); }
+    .deck-meta { font-size: 0.82rem; color: var(--muted); }
+    .btn-add-top {
+      background: var(--accent);
+      color: #0a1a10;
+      border: none;
+      border-radius: 10px;
+      padding: 9px 18px;
+      font-family: 'Sora', sans-serif;
+      font-weight: 600;
+      font-size: 0.85rem;
+      cursor: pointer;
+      transition: opacity .18s;
+    }
+    .btn-add-top:hover { opacity: .85; }
+
+    /* ── MAIN ── */
+    main {
+      width: 100%;
+      max-width: 720px;
+      padding: 40px 20px 80px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 32px;
+    }
+
+    /* ── PROGRESS ── */
+    .progress-bar-wrap {
+      width: 100%;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .progress-bar-track {
+      flex: 1;
+      height: 6px;
+      background: var(--border);
+      border-radius: 99px;
+      overflow: hidden;
+    }
+    .progress-bar-fill {
+      height: 100%;
+      background: var(--accent);
+      border-radius: 99px;
+      transition: width .4s ease;
+    }
+    .progress-label { font-size: 0.8rem; color: var(--muted); white-space: nowrap; }
+
+    /* ── CARD ── */
+    .card-scene {
+      width: 100%;
+      height: 320px;
+      perspective: 1200px;
+      cursor: pointer;
+    }
+    .card-inner {
+      width: 100%;
+      height: 100%;
+      position: relative;
+      transform-style: preserve-3d;
+      transition: transform .55s cubic-bezier(.4,0,.2,1);
+    }
+    .card-inner.flipped { transform: rotateY(180deg); }
+
+    .card-face {
+      position: absolute;
+      inset: 0;
+      border-radius: var(--radius);
+      backface-visibility: hidden;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 36px;
+      border: 1.5px solid var(--border);
+      gap: 16px;
+    }
+    .card-face.front { background: var(--card-front); }
+    .card-face.back {
+      background: var(--card-back);
+      transform: rotateY(180deg);
+      border-color: var(--accent-dim);
+    }
+
+    .card-eyebrow {
+      font-size: 0.72rem;
+      font-weight: 600;
+      letter-spacing: 1.2px;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+    .card-face.back .card-eyebrow { color: var(--accent); }
+
+    .card-text {
+      font-family: 'Sora', sans-serif;
+      font-size: clamp(1.1rem, 3vw, 1.55rem);
+      font-weight: 600;
+      text-align: center;
+      line-height: 1.4;
+      color: var(--text);
+    }
+    .card-hint {
+      font-size: 0.78rem;
+      color: var(--muted);
+      margin-top: 8px;
+    }
+
+    /* ── SHOW ANSWER BTN ── */
+    .btn-show-answer {
+      background: transparent;
+      border: 1.5px solid var(--accent-dim);
+      color: var(--accent);
+      border-radius: 10px;
+      padding: 8px 20px;
+      font-size: 0.85rem;
+      font-weight: 500;
+      cursor: pointer;
+      transition: background .18s;
+    }
+    .btn-show-answer:hover { background: var(--accent-dim); }
+
+    /* ── NAV CONTROLS ── */
+    .nav-controls {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+    .btn-nav {
+      background: var(--surface);
+      border: 1.5px solid var(--border);
+      color: var(--text);
+      border-radius: 12px;
+      padding: 10px 24px;
+      font-family: 'Sora', sans-serif;
+      font-weight: 600;
+      font-size: 0.9rem;
+      cursor: pointer;
+      transition: background .18s, border-color .18s;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .btn-nav:hover:not(:disabled) { background: var(--border); border-color: var(--muted); }
+    .btn-nav:disabled { opacity: .3; cursor: default; }
+    .card-counter {
+      font-family: 'Sora', sans-serif;
+      font-size: 1rem;
+      font-weight: 600;
+      color: var(--text);
+      min-width: 60px;
+      text-align: center;
+    }
+
+    /* ── ACTION ROW ── */
+    .card-actions {
+      display: flex;
+      gap: 10px;
+    }
+    .btn-edit, .btn-delete {
+      border-radius: 9px;
+      padding: 8px 16px;
+      font-size: 0.82rem;
+      font-weight: 500;
+      cursor: pointer;
+      border: 1.5px solid;
+      transition: background .18s;
+    }
+    .btn-edit {
+      background: transparent;
+      border-color: var(--border);
+      color: var(--muted);
+    }
+    .btn-edit:hover { background: var(--surface); color: var(--text); }
+    .btn-delete {
+      background: transparent;
+      border-color: var(--danger);
+      color: var(--danger);
+    }
+    .btn-delete:hover { background: var(--danger-dim); }
+
+    /* ── EMPTY STATE ── */
+    .empty-state {
+      text-align: center;
+      padding: 60px 20px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 14px;
+    }
+    .empty-icon { font-size: 3rem; }
+    .empty-state h2 {
+      font-family: 'Sora', sans-serif;
+      font-size: 1.3rem;
+      font-weight: 700;
+    }
+    .empty-state p { color: var(--muted); font-size: 0.9rem; line-height: 1.6; }
+
+    /* ── MODAL ── */
+    .modal-overlay {
+      position: fixed; inset: 0;
+      background: rgba(0,0,0,.6);
+      backdrop-filter: blur(4px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 200;
+      padding: 20px;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity .2s;
+    }
+    .modal-overlay.open { opacity: 1; pointer-events: all; }
+
+    .modal {
+      background: var(--surface);
+      border: 1.5px solid var(--border);
+      border-radius: 20px;
+      width: 100%;
+      max-width: 480px;
+      padding: 32px;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+      transform: translateY(16px);
+      transition: transform .2s;
+    }
+    .modal-overlay.open .modal { transform: translateY(0); }
+
+    .modal h2 {
+      font-family: 'Sora', sans-serif;
+      font-size: 1.2rem;
+      font-weight: 700;
+    }
+    .modal label {
+      font-size: 0.8rem;
+      font-weight: 500;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: .8px;
+      display: block;
+      margin-bottom: 6px;
+    }
+    .modal textarea {
+      width: 100%;
+      background: var(--bg);
+      border: 1.5px solid var(--border);
+      border-radius: 10px;
+      color: var(--text);
+      font-family: 'Inter', sans-serif;
+      font-size: 0.95rem;
+      padding: 12px 14px;
+      resize: vertical;
+      min-height: 90px;
+      transition: border-color .18s;
+      outline: none;
+    }
+    .modal textarea:focus { border-color: var(--accent); }
+
+    .modal-footer {
+      display: flex;
+      gap: 10px;
+      justify-content: flex-end;
+    }
+    .btn-cancel {
+      background: transparent;
+      border: 1.5px solid var(--border);
+      color: var(--muted);
+      border-radius: 10px;
+      padding: 10px 20px;
+      font-size: 0.9rem;
+      cursor: pointer;
+      transition: background .18s;
+    }
+    .btn-cancel:hover { background: var(--border); color: var(--text); }
+    .btn-save {
+      background: var(--accent);
+      border: none;
+      color: #0a1a10;
+      border-radius: 10px;
+      padding: 10px 24px;
+      font-family: 'Sora', sans-serif;
+      font-weight: 600;
+      font-size: 0.9rem;
+      cursor: pointer;
+      transition: opacity .18s;
+    }
+    .btn-save:hover { opacity: .85; }
+    .error-msg { color: var(--danger); font-size: 0.8rem; margin-top: -10px; display: none; }
+
+    /* ── TOAST ── */
+    .toast {
+      position: fixed;
+      bottom: 28px;
+      left: 50%;
+      transform: translateX(-50%) translateY(80px);
+      background: var(--surface);
+      border: 1.5px solid var(--accent-dim);
+      color: var(--accent);
+      padding: 10px 22px;
+      border-radius: 999px;
+      font-size: 0.85rem;
+      font-weight: 500;
+      transition: transform .3s ease;
+      z-index: 300;
+      white-space: nowrap;
+    }
+    .toast.show { transform: translateX(-50%) translateY(0); }
+
+    @media (max-width: 480px) {
+      header { padding: 16px 18px; }
+      .card-scene { height: 260px; }
+      .card-face { padding: 24px 20px; }
+      .card-text { font-size: 1.1rem; }
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <div>
+    <div class="logo">Flip<span>Study</span></div>
+    <div class="deck-meta" id="deckMeta">0 cards in deck</div>
+  </div>
+  <button class="btn-add-top" onclick="openModal()">+ Add Card</button>
+</header>
+
+<main>
+  <!-- Progress -->
+  <div class="progress-bar-wrap" id="progressWrap" style="display:none">
+    <div class="progress-bar-track">
+      <div class="progress-bar-fill" id="progressFill" style="width:0%"></div>
+    </div>
+    <span class="progress-label" id="progressLabel">1 / 1</span>
+  </div>
+
+  <!-- Card Area -->
+  <div id="cardArea" style="width:100%"></div>
+
+  <!-- Nav Controls -->
+  <div class="nav-controls" id="navControls" style="display:none">
+    <button class="btn-nav" id="btnPrev" onclick="navigate(-1)">← Prev</button>
+    <span class="card-counter" id="cardCounter">1 / 1</span>
+    <button class="btn-nav" id="btnNext" onclick="navigate(1)">Next →</button>
+  </div>
+
+  <!-- Card Actions -->
+  <div class="card-actions" id="cardActions" style="display:none">
+    <button class="btn-edit" onclick="editCurrent()">✏️ Edit</button>
+    <button class="btn-delete" onclick="deleteCurrent()">🗑 Delete</button>
+  </div>
+</main>
+
+<!-- Modal -->
+<div class="modal-overlay" id="modalOverlay">
+  <div class="modal">
+    <h2 id="modalTitle">Add New Flashcard</h2>
+    <div>
+      <label>Question</label>
+      <textarea id="inputQuestion" placeholder="e.g. What is the powerhouse of the cell?"></textarea>
+    </div>
+    <div>
+      <label>Answer</label>
+      <textarea id="inputAnswer" placeholder="e.g. The mitochondria"></textarea>
+    </div>
+    <div class="error-msg" id="errorMsg">Both fields are required.</div>
+    <div class="modal-footer">
+      <button class="btn-cancel" onclick="closeModal()">Cancel</button>
+      <button class="btn-save" onclick="saveCard()">Save Card</button>
+    </div>
+  </div>
+</div>
+
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+
+<script>
+  // ── STATE ──
+  let cards = JSON.parse(localStorage.getItem('flipstudy_cards') || '[]');
+  let current = 0;
+  let editIndex = null;
+  let isFlipped = false;
+
+  // Default starter cards
+  if (cards.length === 0) {
+    cards = [
+      { q: "What is the powerhouse of the cell?", a: "The Mitochondria" },
+      { q: "What does HTML stand for?", a: "HyperText Markup Language" },
+      { q: "Who developed the theory of relativity?", a: "Albert Einstein" },
+      { q: "What is the chemical symbol for Gold?", a: "Au (Aurum)" },
+    ];
+    save();
+  }
+
+  function save() {
+    localStorage.setItem('flipstudy_cards', JSON.stringify(cards));
+  }
+
+  // ── RENDER ──
+  function render() {
+    const area = document.getElementById('cardArea');
+    const navControls = document.getElementById('navControls');
+    const cardActions = document.getElementById('cardActions');
+    const progressWrap = document.getElementById('progressWrap');
+
+    document.getElementById('deckMeta').textContent =
+      `${cards.length} card${cards.length !== 1 ? 's' : ''} in deck`;
+
+    if (cards.length === 0) {
+      area.innerHTML = `
+        <div class="empty-state">
+          <div class="empty-icon">🃏</div>
+          <h2>No flashcards yet</h2>
+          <p>Click <strong>+ Add Card</strong> to create your first flashcard.<br/>Start building your study deck!</p>
+        </div>`;
+      navControls.style.display = 'none';
+      cardActions.style.display = 'none';
+      progressWrap.style.display = 'none';
+      return;
+    }
+
+    if (current >= cards.length) current = cards.length - 1;
+    if (current < 0) current = 0;
+    isFlipped = false;
+
+    const card = cards[current];
+    const pct = Math.round(((current + 1) / cards.length) * 100);
+
+    progressWrap.style.display = 'flex';
+    document.getElementById('progressFill').style.width = pct + '%';
+    document.getElementById('progressLabel').textContent = `${current + 1} / ${cards.length}`;
+    document.getElementById('cardCounter').textContent = `${current + 1} / ${cards.length}`;
+
+    area.innerHTML = `
+      <div class="card-scene" id="cardScene" onclick="flipCard()">
+        <div class="card-inner" id="cardInner">
+          <div class="card-face front">
+            <span class="card-eyebrow">Question</span>
+            <p class="card-text">${escHtml(card.q)}</p>
+            <button class="btn-show-answer" onclick="event.stopPropagation(); flipCard()">Show Answer</button>
+          </div>
+          <div class="card-face back">
+            <span class="card-eyebrow">Answer</span>
+            <p class="card-text">${escHtml(card.a)}</p>
+            <span class="card-hint">Click to flip back</span>
+          </div>
+        </div>
+      </div>`;
+
+    navControls.style.display = 'flex';
+    cardActions.style.display = 'flex';
+
+    document.getElementById('btnPrev').disabled = current === 0;
+    document.getElementById('btnNext').disabled = current === cards.length - 1;
+  }
+
+  function escHtml(str) {
+    return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  }
+
+  // ── FLIP ──
+  function flipCard() {
+    const inner = document.getElementById('cardInner');
+    if (!inner) return;
+    isFlipped = !isFlipped;
+    inner.classList.toggle('flipped', isFlipped);
+  }
+
+  // ── NAVIGATE ──
+  function navigate(dir) {
+    current += dir;
+    render();
+  }
+
+  // ── MODAL ──
+  function openModal(index = null) {
+    editIndex = index;
+    document.getElementById('modalTitle').textContent = index !== null ? 'Edit Flashcard' : 'Add New Flashcard';
+    document.getElementById('inputQuestion').value = index !== null ? cards[index].q : '';
+    document.getElementById('inputAnswer').value = index !== null ? cards[index].a : '';
+    document.getElementById('errorMsg').style.display = 'none';
+    document.getElementById('modalOverlay').classList.add('open');
+    setTimeout(() => document.getElementById('inputQuestion').focus(), 200);
+  }
+
+  function closeModal() {
+    document.getElementById('modalOverlay').classList.remove('open');
+    editIndex = null;
+  }
+
+  function saveCard() {
+    const q = document.getElementById('inputQuestion').value.trim();
+    const a = document.getElementById('inputAnswer').value.trim();
+    const err = document.getElementById('errorMsg');
+
+    if (!q || !a) { err.style.display = 'block'; return; }
+    err.style.display = 'none';
+
+    if (editIndex !== null) {
+      cards[editIndex] = { q, a };
+      showToast('Card updated!');
+    } else {
+      cards.push({ q, a });
+      current = cards.length - 1;
+      showToast('Card added!');
+    }
+
+    save();
+    closeModal();
+    render();
+  }
+
+  // ── EDIT / DELETE ──
+  function editCurrent() { openModal(current); }
+
+  function deleteCurrent() {
+    if (!confirm('Delete this flashcard?')) return;
+    cards.splice(current, 1);
+    if (current >= cards.length && current > 0) current--;
+    save();
+    render();
+    showToast('Card deleted.');
+  }
+
+  // ── TOAST ──
+  function showToast(msg) {
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.classList.add('show');
+    setTimeout(() => t.classList.remove('show'), 2200);
+  }
+
+  // ── KEYBOARD NAV ──
+  document.addEventListener('keydown', e => {
+    if (document.getElementById('modalOverlay').classList.contains('open')) return;
+    if (e.key === 'ArrowLeft') navigate(-1);
+    if (e.key === 'ArrowRight') navigate(1);
+    if (e.key === ' ') { e.preventDefault(); flipCard(); }
+  });
+
+  // Close modal on overlay click
+  document.getElementById('modalOverlay').addEventListener('click', e => {
+    if (e.target === document.getElementById('modalOverlay')) closeModal();
+  });
+
+  // ── INIT ──
+  render();
+</script>
+</body>
+</html>
